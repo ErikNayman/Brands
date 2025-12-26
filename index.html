@@ -6,9 +6,15 @@
     - BrandSearch_searchBrands(criteria)
     - BrandSearch_gotoRow(rowNumber)
 
-  Логика совпадений:
-    - Между группами (Price Point, Categories, Gender, Key Categories, Size Range, Origin, Style, Key Words): AND
-    - Внутри групп с множественным выбором (Categories/Gender/Key Categories/Size Range/Style/Key Words): ALL (должны присутствовать ВСЕ выбранные)
+  Изменения по запросу:
+    - Для каждой переменной сделан выпадающий список (dropdown)
+    - Можно выбрать несколько значений (multi-select через чекбоксы)
+    - Есть поиск внутри dropdown (важно для Key Words)
+    - Выбранные значения отображаются чипами, можно удалять крестиком
+
+  Логика совпадений (как раньше):
+    - Между группами: AND
+    - Внутри групп с множественным выбором: ALL (должны присутствовать ВСЕ выбранные)
     - Для Price Point и Origin (если выбрано несколько): ANY (подойдёт любой из выбранных)
 -->
 
@@ -68,18 +74,9 @@
 
       .row {
         display: flex;
-        gap: 6px;
+        gap: 8px;
         align-items: center;
         flex-wrap: wrap;
-      }
-
-      input[type="text"] {
-        flex: 1;
-        min-width: 170px;
-        padding: 7px 9px;
-        border: 1px solid #ccc;
-        border-radius: 8px;
-        outline: none;
       }
 
       button {
@@ -213,6 +210,117 @@
         color: var(--primary);
         text-decoration: none;
       }
+
+      /* ---------- Multi-select dropdown ---------- */
+      .ms {
+        position: relative;
+      }
+
+      .ms-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 8px 10px;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        background: #fff;
+        cursor: pointer;
+        user-select: none;
+      }
+
+      .ms-header .ms-text {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        color: #111;
+        font-size: 12px;
+      }
+
+      .ms-header .ms-caret {
+        color: #777;
+        font-size: 12px;
+      }
+
+      .ms-panel {
+        display: none;
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: calc(100% + 6px);
+        z-index: 999;
+        background: #fff;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        box-shadow: 0 10px 30px rgba(0,0,0,.10);
+        padding: 8px;
+      }
+
+      .ms.open .ms-panel { display: block; }
+
+      .ms-search {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 7px 9px;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        outline: none;
+        font-size: 12px;
+      }
+
+      .ms-actions {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+        margin-top: 8px;
+      }
+
+      .ms-actions .left {
+        display: inline-flex;
+        gap: 8px;
+        align-items: center;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .mini {
+        padding: 6px 10px;
+        font-size: 12px;
+        border-radius: 999px;
+      }
+
+      .ms-options {
+        margin-top: 8px;
+        max-height: 220px;
+        overflow: auto;
+        border: 1px solid #eee;
+        border-radius: 8px;
+        padding: 6px;
+      }
+
+      .ms-opt {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        padding: 6px 6px;
+        border-radius: 6px;
+        cursor: pointer;
+      }
+
+      .ms-opt:hover { background: #fafafa; }
+
+      .ms-opt input {
+        margin-top: 2px;
+      }
+
+      .ms-opt span {
+        font-size: 12px;
+        line-height: 1.25;
+        word-break: break-word;
+      }
     </style>
   </head>
 
@@ -221,99 +329,179 @@
 
     <div class="muted">
       Вы выбираете параметры и нажимаете <b>Найти</b>.<br />
-      Результат: список брендов (строки A–AA) в одной строке на бренд.<br />
+      Результат: список брендов (строки A–AA) — одна строка на бренд.<br />
       Совпадение: <b>все</b> группы фильтров (AND). Внутри групп с множественным выбором — <b>ALL</b> (все выбранные должны присутствовать).<br />
       Для <b>Price Point</b> и <b>Origin</b>: если выбрано несколько — подходит любой (ANY).
     </div>
 
     <div class="grid">
 
+      <!-- Price Point -->
       <div class="field">
         <div class="label">Price Point</div>
-        <div class="row">
-          <input id="inPrice" type="text" list="dlPrice" placeholder="Начните ввод…" />
-          <button onclick="addTag('pricePoints')">Добавить</button>
+        <div class="ms" id="ms_pricePoints">
+          <div class="ms-header" id="ms_header_pricePoints" onclick="msToggle('pricePoints')">
+            <div class="ms-text" id="ms_text_pricePoints">Выбрать…</div>
+            <div class="ms-caret">▾</div>
+          </div>
+          <div class="ms-panel" onclick="event.stopPropagation()">
+            <input class="ms-search" id="ms_search_pricePoints" placeholder="Поиск…" oninput="msFilter('pricePoints', this.value)" />
+            <div class="ms-actions">
+              <div class="left"><span id="ms_count_pricePoints">0 выбрано</span></div>
+              <button class="mini" onclick="msClear('pricePoints');event.stopPropagation();">Clear</button>
+            </div>
+            <div class="ms-options" id="opts_pricePoints"></div>
+          </div>
         </div>
-        <datalist id="dlPrice"></datalist>
         <div id="chips_pricePoints" class="chips"></div>
-        <div class="small">Можно добавить несколько: подходит любой из выбранных (ANY).</div>
+        <div class="small">Можно выбрать несколько — подходит любой (ANY).</div>
       </div>
 
+      <!-- Categories -->
       <div class="field">
         <div class="label">Categories</div>
-        <div class="row">
-          <input id="inCategories" type="text" list="dlCategories" placeholder="Начните ввод…" />
-          <button onclick="addTag('categories')">Добавить</button>
+        <div class="ms" id="ms_categories">
+          <div class="ms-header" id="ms_header_categories" onclick="msToggle('categories')">
+            <div class="ms-text" id="ms_text_categories">Выбрать…</div>
+            <div class="ms-caret">▾</div>
+          </div>
+          <div class="ms-panel" onclick="event.stopPropagation()">
+            <input class="ms-search" id="ms_search_categories" placeholder="Поиск…" oninput="msFilter('categories', this.value)" />
+            <div class="ms-actions">
+              <div class="left"><span id="ms_count_categories">0 выбрано</span></div>
+              <button class="mini" onclick="msClear('categories');event.stopPropagation();">Clear</button>
+            </div>
+            <div class="ms-options" id="opts_categories"></div>
+          </div>
         </div>
-        <datalist id="dlCategories"></datalist>
         <div id="chips_categories" class="chips"></div>
-        <div class="small">Если выбрано несколько: должны присутствовать все (ALL).</div>
+        <div class="small">Если выбрано несколько — должны присутствовать все (ALL).</div>
       </div>
 
+      <!-- Gender(s) -->
       <div class="field">
         <div class="label">Gender (s)</div>
-        <div class="row">
-          <input id="inGenders" type="text" list="dlGenders" placeholder="Начните ввод…" />
-          <button onclick="addTag('genders')">Добавить</button>
+        <div class="ms" id="ms_genders">
+          <div class="ms-header" id="ms_header_genders" onclick="msToggle('genders')">
+            <div class="ms-text" id="ms_text_genders">Выбрать…</div>
+            <div class="ms-caret">▾</div>
+          </div>
+          <div class="ms-panel" onclick="event.stopPropagation()">
+            <input class="ms-search" id="ms_search_genders" placeholder="Поиск…" oninput="msFilter('genders', this.value)" />
+            <div class="ms-actions">
+              <div class="left"><span id="ms_count_genders">0 выбрано</span></div>
+              <button class="mini" onclick="msClear('genders');event.stopPropagation();">Clear</button>
+            </div>
+            <div class="ms-options" id="opts_genders"></div>
+          </div>
         </div>
-        <datalist id="dlGenders"></datalist>
         <div id="chips_genders" class="chips"></div>
-        <div class="small">Если выбрано несколько: должны присутствовать все (ALL).</div>
+        <div class="small">Если выбрано несколько — должны присутствовать все (ALL).</div>
       </div>
 
+      <!-- Key Categories -->
       <div class="field">
         <div class="label">Key Categories</div>
-        <div class="row">
-          <input id="inKeyCategories" type="text" list="dlKeyCategories" placeholder="Начните ввод…" />
-          <button onclick="addTag('keyCategories')">Добавить</button>
+        <div class="ms" id="ms_keyCategories">
+          <div class="ms-header" id="ms_header_keyCategories" onclick="msToggle('keyCategories')">
+            <div class="ms-text" id="ms_text_keyCategories">Выбрать…</div>
+            <div class="ms-caret">▾</div>
+          </div>
+          <div class="ms-panel" onclick="event.stopPropagation()">
+            <input class="ms-search" id="ms_search_keyCategories" placeholder="Поиск…" oninput="msFilter('keyCategories', this.value)" />
+            <div class="ms-actions">
+              <div class="left"><span id="ms_count_keyCategories">0 выбрано</span></div>
+              <button class="mini" onclick="msClear('keyCategories');event.stopPropagation();">Clear</button>
+            </div>
+            <div class="ms-options" id="opts_keyCategories"></div>
+          </div>
         </div>
-        <datalist id="dlKeyCategories"></datalist>
         <div id="chips_keyCategories" class="chips"></div>
-        <div class="small">Если выбрано несколько: должны присутствовать все (ALL).</div>
+        <div class="small">Если выбрано несколько — должны присутствовать все (ALL).</div>
       </div>
 
+      <!-- Size Range -->
       <div class="field">
         <div class="label">Size Range</div>
-        <div class="row">
-          <input id="inSizes" type="text" list="dlSizes" placeholder="Начните ввод…" />
-          <button onclick="addTag('sizeRanges')">Добавить</button>
+        <div class="ms" id="ms_sizeRanges">
+          <div class="ms-header" id="ms_header_sizeRanges" onclick="msToggle('sizeRanges')">
+            <div class="ms-text" id="ms_text_sizeRanges">Выбрать…</div>
+            <div class="ms-caret">▾</div>
+          </div>
+          <div class="ms-panel" onclick="event.stopPropagation()">
+            <input class="ms-search" id="ms_search_sizeRanges" placeholder="Поиск…" oninput="msFilter('sizeRanges', this.value)" />
+            <div class="ms-actions">
+              <div class="left"><span id="ms_count_sizeRanges">0 выбрано</span></div>
+              <button class="mini" onclick="msClear('sizeRanges');event.stopPropagation();">Clear</button>
+            </div>
+            <div class="ms-options" id="opts_sizeRanges"></div>
+          </div>
         </div>
-        <datalist id="dlSizes"></datalist>
         <div id="chips_sizeRanges" class="chips"></div>
-        <div class="small">Если выбрано несколько: должны присутствовать все (ALL).</div>
+        <div class="small">Если выбрано несколько — должны присутствовать все (ALL).</div>
       </div>
 
+      <!-- Origin -->
       <div class="field">
         <div class="label">Origin</div>
-        <div class="row">
-          <input id="inOrigins" type="text" list="dlOrigins" placeholder="Начните ввод…" />
-          <button onclick="addTag('origins')">Добавить</button>
+        <div class="ms" id="ms_origins">
+          <div class="ms-header" id="ms_header_origins" onclick="msToggle('origins')">
+            <div class="ms-text" id="ms_text_origins">Выбрать…</div>
+            <div class="ms-caret">▾</div>
+          </div>
+          <div class="ms-panel" onclick="event.stopPropagation()">
+            <input class="ms-search" id="ms_search_origins" placeholder="Поиск…" oninput="msFilter('origins', this.value)" />
+            <div class="ms-actions">
+              <div class="left"><span id="ms_count_origins">0 выбрано</span></div>
+              <button class="mini" onclick="msClear('origins');event.stopPropagation();">Clear</button>
+            </div>
+            <div class="ms-options" id="opts_origins"></div>
+          </div>
         </div>
-        <datalist id="dlOrigins"></datalist>
         <div id="chips_origins" class="chips"></div>
-        <div class="small">Можно добавить несколько: подходит любой из выбранных (ANY).</div>
+        <div class="small">Можно выбрать несколько — подходит любой (ANY).</div>
       </div>
 
+      <!-- Distinctive Style -->
       <div class="field">
         <div class="label">Distinctive Style</div>
-        <div class="row">
-          <input id="inStyles" type="text" list="dlStyles" placeholder="Начните ввод…" />
-          <button onclick="addTag('styles')">Добавить</button>
+        <div class="ms" id="ms_styles">
+          <div class="ms-header" id="ms_header_styles" onclick="msToggle('styles')">
+            <div class="ms-text" id="ms_text_styles">Выбрать…</div>
+            <div class="ms-caret">▾</div>
+          </div>
+          <div class="ms-panel" onclick="event.stopPropagation()">
+            <input class="ms-search" id="ms_search_styles" placeholder="Поиск…" oninput="msFilter('styles', this.value)" />
+            <div class="ms-actions">
+              <div class="left"><span id="ms_count_styles">0 выбрано</span></div>
+              <button class="mini" onclick="msClear('styles');event.stopPropagation();">Clear</button>
+            </div>
+            <div class="ms-options" id="opts_styles"></div>
+          </div>
         </div>
-        <datalist id="dlStyles"></datalist>
         <div id="chips_styles" class="chips"></div>
-        <div class="small">Если выбрано несколько: должны присутствовать все (ALL).</div>
+        <div class="small">Если выбрано несколько — должны присутствовать все (ALL).</div>
       </div>
 
+      <!-- Key Words -->
       <div class="field">
         <div class="label">Key Words</div>
-        <div class="row">
-          <input id="inKeywords" type="text" list="dlKeywords" placeholder="Начните ввод…" />
-          <button onclick="addTag('keywords')">Добавить</button>
+        <div class="ms" id="ms_keywords">
+          <div class="ms-header" id="ms_header_keywords" onclick="msToggle('keywords')">
+            <div class="ms-text" id="ms_text_keywords">Выбрать…</div>
+            <div class="ms-caret">▾</div>
+          </div>
+          <div class="ms-panel" onclick="event.stopPropagation()">
+            <input class="ms-search" id="ms_search_keywords" placeholder="Поиск…" oninput="msFilter('keywords', this.value)" />
+            <div class="ms-actions">
+              <div class="left"><span id="ms_count_keywords">0 выбрано</span></div>
+              <button class="mini" onclick="msClear('keywords');event.stopPropagation();">Clear</button>
+            </div>
+            <div class="ms-options" id="opts_keywords"></div>
+          </div>
         </div>
-        <datalist id="dlKeywords"></datalist>
         <div id="chips_keywords" class="chips"></div>
-        <div class="small">Если выбрано несколько: должны присутствовать все (ALL).</div>
+        <div class="small">Если выбрано несколько — должны присутствовать все (ALL).</div>
       </div>
 
       <div class="sep"></div>
@@ -324,7 +512,6 @@
       </div>
 
       <div id="status"></div>
-
       <div id="resultsWrap"></div>
     </div>
 
@@ -341,19 +528,7 @@
         keywords: []
       };
 
-      const fields = {
-        pricePoints:   { inputId: 'inPrice',         dlId: 'dlPrice',         chipsId: 'chips_pricePoints' },
-        categories:    { inputId: 'inCategories',    dlId: 'dlCategories',    chipsId: 'chips_categories' },
-        genders:       { inputId: 'inGenders',       dlId: 'dlGenders',       chipsId: 'chips_genders' },
-        keyCategories: { inputId: 'inKeyCategories', dlId: 'dlKeyCategories', chipsId: 'chips_keyCategories' },
-        sizeRanges:    { inputId: 'inSizes',         dlId: 'dlSizes',         chipsId: 'chips_sizeRanges' },
-        origins:       { inputId: 'inOrigins',       dlId: 'dlOrigins',       chipsId: 'chips_origins' },
-        styles:        { inputId: 'inStyles',        dlId: 'dlStyles',        chipsId: 'chips_styles' },
-        keywords:      { inputId: 'inKeywords',      dlId: 'dlKeywords',      chipsId: 'chips_keywords' }
-      };
-
-      // canonical mapping: normalized -> canonical
-      let optionMaps = {};
+      const msKeys = ['pricePoints','categories','genders','keyCategories','sizeRanges','origins','styles','keywords'];
 
       function norm(s) {
         return String(s || '')
@@ -363,78 +538,143 @@
           .toLowerCase();
       }
 
-      function escapeHtml(s) {
-        return String(s).replace(/[&<>"']/g, m => ({
-          '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
-        }[m]));
-      }
-
-      function escapeJs(s) {
-        return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-      }
-
       function setStatus(msg) {
         document.getElementById('status').textContent = msg || '';
       }
 
-      function buildDatalist(dlId, options) {
-        const dl = document.getElementById(dlId);
-        dl.innerHTML = '';
-        (options || []).forEach(v => {
-          const opt = document.createElement('option');
-          opt.value = v;
-          dl.appendChild(opt);
+      function closeAllExcept(key) {
+        msKeys.forEach(k => {
+          if (k !== key) document.getElementById(`ms_${k}`).classList.remove('open');
         });
       }
 
-      function buildMap(options) {
-        const m = {};
-        (options || []).forEach(v => m[norm(v)] = v);
-        return m;
+      function msToggle(key) {
+        const el = document.getElementById(`ms_${key}`);
+        const willOpen = !el.classList.contains('open');
+        closeAllExcept(key);
+        el.classList.toggle('open', willOpen);
+
+        if (willOpen) {
+          const searchEl = document.getElementById(`ms_search_${key}`);
+          if (searchEl) searchEl.focus();
+        }
       }
 
-      function renderChips(fieldKey) {
-        const chips = document.getElementById(fields[fieldKey].chipsId);
-        chips.innerHTML = '';
-        state[fieldKey].forEach(v => {
+      function msCloseAll() {
+        msKeys.forEach(k => document.getElementById(`ms_${k}`).classList.remove('open'));
+      }
+
+      document.addEventListener('click', (e) => {
+        // клик вне dropdown — закрыть
+        if (!e.target.closest('.ms')) msCloseAll();
+      });
+
+      function updateHeader(key) {
+        const textEl = document.getElementById(`ms_text_${key}`);
+        const countEl = document.getElementById(`ms_count_${key}`);
+        const n = state[key].length;
+
+        if (countEl) countEl.textContent = `${n} выбрано`;
+
+        if (!textEl) return;
+        if (n === 0) textEl.textContent = 'Выбрать…';
+        else if (n === 1) textEl.textContent = state[key][0];
+        else textEl.textContent = `${n} выбрано`;
+      }
+
+      function renderChips(key) {
+        const chipsEl = document.getElementById(`chips_${key}`);
+        chipsEl.innerHTML = '';
+
+        state[key].forEach(v => {
           const chip = document.createElement('span');
           chip.className = 'chip';
-          chip.innerHTML = `<span>${escapeHtml(v)}</span>
-                            <a href="#" onclick="removeTag('${fieldKey}','${escapeJs(v)}');return false;">×</a>`;
-          chips.appendChild(chip);
+
+          const txt = document.createElement('span');
+          txt.textContent = v;
+
+          const a = document.createElement('a');
+          a.href = '#';
+          a.textContent = '×';
+          a.addEventListener('click', (ev) => {
+            ev.preventDefault();
+            msUncheck(key, v);
+          });
+
+          chip.appendChild(txt);
+          chip.appendChild(a);
+          chipsEl.appendChild(chip);
         });
       }
 
-      function addTag(fieldKey) {
-        const input = document.getElementById(fields[fieldKey].inputId);
-        const raw = input.value;
-        if (!raw) return;
+      function msSyncFromCheckboxes(key) {
+        const optsWrap = document.getElementById(`opts_${key}`);
+        const boxes = optsWrap.querySelectorAll('input[type="checkbox"]');
+        state[key] = Array.from(boxes).filter(b => b.checked).map(b => b.value);
 
-        const map = optionMaps[fieldKey] || {};
-        const canon = map[norm(raw)];
-
-        if (!canon) {
-          setStatus(`Значение не распознано: "${raw}". Выберите из выпадающего списка.`);
-          return;
-        }
-
-        if (!state[fieldKey].includes(canon)) {
-          state[fieldKey].push(canon);
-          renderChips(fieldKey);
-        }
-
-        input.value = '';
-        setStatus('');
+        updateHeader(key);
+        renderChips(key);
       }
 
-      function removeTag(fieldKey, value) {
-        state[fieldKey] = state[fieldKey].filter(v => v !== value);
-        renderChips(fieldKey);
+      function msUncheck(key, value) {
+        const optsWrap = document.getElementById(`opts_${key}`);
+        const boxes = optsWrap.querySelectorAll('input[type="checkbox"]');
+        boxes.forEach(b => {
+          if (b.value === value) b.checked = false;
+        });
+        msSyncFromCheckboxes(key);
+      }
+
+      function msClear(key) {
+        const optsWrap = document.getElementById(`opts_${key}`);
+        const boxes = optsWrap.querySelectorAll('input[type="checkbox"]');
+        boxes.forEach(b => (b.checked = false));
+        msSyncFromCheckboxes(key);
+        // чистим поиск
+        const s = document.getElementById(`ms_search_${key}`);
+        if (s) { s.value = ''; msFilter(key, ''); }
+      }
+
+      function msFilter(key, query) {
+        const q = norm(query);
+        const optsWrap = document.getElementById(`opts_${key}`);
+        const labels = optsWrap.querySelectorAll('.ms-opt');
+
+        labels.forEach(lbl => {
+          const hay = lbl.dataset.norm || '';
+          lbl.style.display = (q === '' || hay.includes(q)) ? 'flex' : 'none';
+        });
+      }
+
+      function buildOptions(key, options) {
+        const optsWrap = document.getElementById(`opts_${key}`);
+        optsWrap.innerHTML = '';
+
+        (options || []).forEach(v => {
+          const label = document.createElement('label');
+          label.className = 'ms-opt';
+          label.dataset.norm = norm(v);
+
+          const cb = document.createElement('input');
+          cb.type = 'checkbox';
+          cb.value = v;
+          cb.addEventListener('change', () => msSyncFromCheckboxes(key));
+
+          const span = document.createElement('span');
+          span.textContent = v;
+
+          label.appendChild(cb);
+          label.appendChild(span);
+          optsWrap.appendChild(label);
+        });
+
+        // initial header
+        updateHeader(key);
+        renderChips(key);
       }
 
       function clearAll() {
-        Object.keys(state).forEach(k => state[k] = []);
-        Object.keys(fields).forEach(renderChips);
+        msKeys.forEach(k => msClear(k));
         document.getElementById('resultsWrap').innerHTML = '';
         setStatus('Фильтры очищены.');
       }
@@ -459,6 +699,12 @@
         return pills ? `<div class="filtersSummary">${pills}</div>` : '';
       }
 
+      function escapeHtml(s) {
+        return String(s).replace(/[&<>"']/g, m => ({
+          '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+        }[m]));
+      }
+
       function runSearch() {
         if (!google || !google.script || !google.script.run) {
           setStatus('Эта страница должна быть открыта внутри Google Sheets (Apps Script sidebar).');
@@ -469,7 +715,6 @@
         setStatus('Поиск…');
         document.getElementById('resultsWrap').innerHTML = '';
 
-        // Отправляем критерии на сервер
         const payload = {
           pricePoints: state.pricePoints,
           categories: state.categories,
@@ -500,7 +745,6 @@
 
       function renderResults(res) {
         const wrap = document.getElementById('resultsWrap');
-
         const summary = buildFiltersSummary();
 
         if (!res || !res.rows || res.rows.length === 0) {
@@ -544,38 +788,14 @@
 
         google.script.run
           .withSuccessHandler(opts => {
-            // datalists
-            buildDatalist(fields.pricePoints.dlId, opts.pricePoints || []);
-            buildDatalist(fields.categories.dlId, opts.categories || []);
-            buildDatalist(fields.genders.dlId, opts.genders || []);
-            buildDatalist(fields.keyCategories.dlId, opts.keyCategories || []);
-            buildDatalist(fields.sizeRanges.dlId, opts.sizeRanges || []);
-            buildDatalist(fields.origins.dlId, opts.origins || []);
-            buildDatalist(fields.styles.dlId, opts.styles || []);
-            buildDatalist(fields.keywords.dlId, opts.keywords || []);
-
-            // maps for strict selection
-            optionMaps = {
-              pricePoints: buildMap(opts.pricePoints || []),
-              categories: buildMap(opts.categories || []),
-              genders: buildMap(opts.genders || []),
-              keyCategories: buildMap(opts.keyCategories || []),
-              sizeRanges: buildMap(opts.sizeRanges || []),
-              origins: buildMap(opts.origins || []),
-              styles: buildMap(opts.styles || []),
-              keywords: buildMap(opts.keywords || [])
-            };
-
-            // Enter -> Add
-            Object.keys(fields).forEach(k => {
-              const el = document.getElementById(fields[k].inputId);
-              el.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  addTag(k);
-                }
-              });
-            });
+            buildOptions('pricePoints', opts.pricePoints || []);
+            buildOptions('categories', opts.categories || []);
+            buildOptions('genders', opts.genders || []);
+            buildOptions('keyCategories', opts.keyCategories || []);
+            buildOptions('sizeRanges', opts.sizeRanges || []);
+            buildOptions('origins', opts.origins || []);
+            buildOptions('styles', opts.styles || []);
+            buildOptions('keywords', opts.keywords || []);
 
             setStatus('Готово. Выберите параметры и нажмите “Найти”.');
           })
